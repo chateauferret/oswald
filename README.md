@@ -32,12 +32,12 @@ git fetch upstream master
 
 The upstream repository root contains more than the Python package, so syncing
 the package subtree requires splitting `upstream/master` down to its
-`terrain_diffusion/` directory first and then pulling that split history:
+`terrain_diffusion/` directory first and then merging that split history:
 
 ```bash
 git fetch upstream master
 split_commit=$(git subtree split --prefix=terrain_diffusion refs/remotes/upstream/master)
-git subtree pull --prefix=terrain_diffusion . "$split_commit" --squash
+git subtree merge --prefix=terrain_diffusion "$split_commit" --squash
 ```
 
 Using `git subtree pull --prefix terrain_diffusion upstream master --squash`
