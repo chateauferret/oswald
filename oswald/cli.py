@@ -1,7 +1,7 @@
 import click
 import sys
 
-from oswald.bootstrap import configure_torch_cuda_allocator
+from oswald.bootstrap import configure_torch_cuda_allocator, preload_nvidia_libraries
 
 
 class LazyGroup(click.Group):
@@ -52,5 +52,6 @@ def cli():
 
 
 def main():
+    preload_nvidia_libraries()
     configure_torch_cuda_allocator()
     cli()

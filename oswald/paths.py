@@ -3,9 +3,13 @@ from pathlib import Path
 
 
 def _find_project_root() -> Path:
+    env_root = os.getenv("OSWALD_PROJECT_ROOT")
+    if env_root:
+        return Path(env_root).expanduser().resolve()
+
     current = Path(__file__).resolve().parent
     for candidate in (current, *current.parents):
-        if (candidate / "terrain_diffusion").is_dir() and (candidate / "README.md").exists():
+        if (candidate / ".oswald-root").exists():
             return candidate
     return Path(__file__).resolve().parent.parent
 
