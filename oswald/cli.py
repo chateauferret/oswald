@@ -48,7 +48,7 @@ lazy_commands = {
 
 @click.group(cls=LazyGroup, lazy_commands=lazy_commands)
 def cli():
-    """Terrain Diffusion CLI - Main entry point for all commands"""
+    """Oswald CLI - Main entry point for terrain workflows"""
 
 
 def main():

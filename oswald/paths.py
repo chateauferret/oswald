@@ -2,7 +2,15 @@ import os
 from pathlib import Path
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+def _find_project_root() -> Path:
+    current = Path(__file__).resolve().parent
+    for candidate in (current, *current.parents):
+        if (candidate / "terrain_diffusion").is_dir() and (candidate / "README.md").exists():
+            return candidate
+    return Path(__file__).resolve().parent.parent
+
+
+PROJECT_ROOT = _find_project_root()
 
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
 DATA_DIR = Path(os.getenv("TERRAIN_DATA_DIR", DEFAULT_DATA_DIR))
