@@ -14,10 +14,13 @@ Oswald-specific files live outside that subtree-driven package flow, notably:
 - `configs/`
 - `legends/`
 - `make_terrain.ipynb`
+- `oswald/`
 
-Local changes inside `terrain_diffusion/` can still be committed normally; the
-subtree metadata records which upstream split commit the package came from so
-future upstream updates can be merged in cleanly.
+The Oswald-owned runtime helpers now live under `oswald/`. The files kept under
+`terrain_diffusion/` for `__main__.py`, `__init__.py`, and `paths.py` are thin
+compatibility wrappers so existing imports and `python -m terrain_diffusion`
+continue to work while the actual custom logic stays outside the subtree-owned
+package.
 
 ### One-time remote setup
 
