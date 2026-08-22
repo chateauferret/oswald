@@ -22,7 +22,7 @@ def preload_nvidia_libraries():
         search_dirs = []
 
         try:
-            site_dirs = site.getsitepackages()
+            site_dirs = list(site.getsitepackages())
             if hasattr(site, "getusersitepackages"):
                 site_dirs.append(site.getusersitepackages())
             search_dirs.extend(site_dirs)
