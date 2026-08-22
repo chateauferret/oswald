@@ -17,10 +17,18 @@ def _find_project_root() -> Path:
 PROJECT_ROOT = _find_project_root()
 
 DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
-DATA_DIR = Path(os.getenv("TERRAIN_DATA_DIR", DEFAULT_DATA_DIR))
+DATA_DIR = Path(
+    os.getenv("OSWALD_DATA_DIR")
+    or os.getenv("TERRAIN_DATA_DIR")
+    or DEFAULT_DATA_DIR
+)
 
 DEFAULT_CHECKPOINT_DIR = PROJECT_ROOT / "checkpoints"
-CHECKPOINT_DIR = Path(os.getenv("TERRAIN_CHECKPOINT_DIR", DEFAULT_CHECKPOINT_DIR))
+CHECKPOINT_DIR = Path(
+    os.getenv("OSWALD_CHECKPOINT_DIR")
+    or os.getenv("TERRAIN_CHECKPOINT_DIR")
+    or DEFAULT_CHECKPOINT_DIR
+)
 
 
 def get_data_path(rel_path: str) -> str:

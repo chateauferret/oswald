@@ -3,6 +3,8 @@ import os
 import site
 import sys
 
+_PRELOAD_DONE = False
+
 
 def configure_torch_cuda_allocator():
     if "PYTORCH_CUDA_ALLOC_CONF" not in os.environ:
@@ -10,6 +12,10 @@ def configure_torch_cuda_allocator():
 
 
 def preload_nvidia_libraries():
+    global _PRELOAD_DONE
+    if _PRELOAD_DONE:
+        return
+
     search_dirs = []
 
     try:
@@ -71,3 +77,5 @@ def preload_nvidia_libraries():
                     loaded.add(full_path)
                 except Exception:
                     pass
+
+    _PRELOAD_DONE = True
