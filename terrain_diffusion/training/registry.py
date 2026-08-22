@@ -3,7 +3,6 @@ from confection import registry
 from terrain_diffusion.models.perceptron import Perceptron
 from terrain_diffusion.training.datasets import *
 from terrain_diffusion.data.laplacian_encoder import *
-from terrain_diffusion.training.datasets.h5_superres_terrain_dataset import H5SuperresTerrainDataset
 from terrain_diffusion.training.loss import CosineLRScheduler, SqrtLRScheduler, ConstantLRScheduler
 from terrain_diffusion.scheduler.dpmsolver import EDMDPMSolverMultistepScheduler
 from terrain_diffusion.models.edm_autoencoder import EDMAutoencoder
@@ -29,12 +28,6 @@ def build_registry():
     registry.lr_sched.register("constant", func=ConstantLRScheduler)
     
     registry.dataset = catalogue.create("confection", "datasets", entry_points=False)
-    registry.dataset.register("h5_decoder_terrain", func=H5DecoderTerrainDataset)
-    registry.dataset.register("h5_superres_terrain", func=H5SuperresTerrainDataset)
-    registry.dataset.register("h5_autoencoder", func=H5AutoencoderDataset)
-    registry.dataset.register("h5_latents", func=H5LatentsDataset)
-    registry.dataset.register("file_gan", func=FileGANDataset)
-    registry.dataset.register("coarse", func=CoarseDataset)
     registry.dataset.register("biome", func=BiomeDataset)
     
     registry.trainer = catalogue.create("confection", "trainers", entry_points=False)

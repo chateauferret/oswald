@@ -28,7 +28,6 @@ class LazyGroup(click.Group):
 lazy_commands = {
     # Training commands
     'train': ('terrain_diffusion.training.train', 'main'),
-    'save-model': ('terrain_diffusion.training.save_model', 'save_model'),
     
     # Data preprocessing commands
     'build-base-dataset': ('terrain_diffusion.data.preprocessing.build_base_dataset', 'process_base_dataset'),
@@ -37,12 +36,8 @@ lazy_commands = {
     
     # Inference commands
     'explore': ('terrain_diffusion.inference.explorer.server', 'main'),
-    'generate': ('terrain_diffusion.inference.world_generator', 'main'),
-    'api': ('terrain_diffusion.inference.api', 'main'),
-    'mc-api': ('terrain_diffusion.inference.minecraft_api', 'main'),
     'onnx-export': ('terrain_diffusion.onnx.export', 'main'),
     'azgaar-to-tiff': ('terrain_diffusion.inference.utils.azgaar_to_tiff', 'main'),
-    'tiff-export': ('terrain_diffusion.inference.tiff_export', 'main'),
     'generate-map': ('terrain_diffusion.inference.generate_map', 'main'),
     'tiff-stats': ('terrain_diffusion.inference.utils.tiff_stats', 'main'),
 }
