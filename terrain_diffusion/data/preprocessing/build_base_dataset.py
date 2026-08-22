@@ -1,0 +1,180 @@
+"""
+Takes a folder of elevation .tiff files and preprocesses them for training a diffusion model.
+The output can be used to train superresolution or base diffusion models.
+
+Requires a pre-trained encoder model.
+"""
+
+import asyncio
+import os
+import tifffile as tiff
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn.functional as F
+import h5py
+from tqdm import tqdm
+import click
+from terrain_diffusion.paths import get_data_path
+from terrain_diffusion.models.edm_autoencoder import EDMAutoencoder
+from terrain_diffusion.models.edm_unet import EDMUnet2D
+import multiprocessing as mp
+from functools import partial
+from terrain_diffusion.data.preprocessing.elevation_dataset import ElevationDataset, process_single_file_base
+from terrain_diffusion.data.preprocessing.calculate_stds import calculate_stats_welford
+
+@click.command()
+@click.option('--highres-elevation-folder', type=str, required=True, help='Path to the folder containing high-resolution elevation files')
+@click.option('--lowres-elevation-file', type=str, required=True, help='Path to the file containing low-resolution elevation data')
+@click.option('--highres-size', type=int, default=4096, help='Size of the high-resolution images')
+@click.option('--lowres-size', type=int, default=512, help='Size of the low-resolution images')
+@click.option('--lowres-sigma', type=float, default=5.0, help='Sigma for Gaussian smoothing of low-resolution images')
+@click.option('--resolution', type=float, default=92.15, help='Resolution of the input images in meters. Used for creating tiles.')
+@click.option('--res-group', type=int, default=90, help='Resolution group of the input images. Only used for labeling.')
+@click.option('--num-chunks', type=int, default=1, help='Number of chunks to divide the image into for processing')
+@click.option('--climate-folder', type=str, default=None, help='Path to the folder containing climate data (optional)')
+@click.option('-o', '--output-file', type=str, default='dataset.h5', help='Path to the output HDF5 file')
+@click.option('--num-workers', type=int, default=mp.cpu_count()-1, help='Number of parallel workers for processing')
+@click.option('--overwrite', is_flag=True, help='Overwrite existing datasets in the output file')
+@click.option('--prefetch', type=int, default=2, help='Number of prefetch factor for the dataloader')
+@click.option('--edge-margin', type=int, default=0, help='Number of pixels to remove from the edges of the lowres image, automatically scaled up for the highres image')
+@click.option('--min-stat-landcover-pct', type=float, default=0.1, help='Minimum percentage of landcover to include in the statistics calculation')
+@click.option('--data-source', type=click.Choice(['merit', 'copernicus']), default='merit', help='Data source type (merit uses <-1000 as void, copernicus uses 0.0 as void)')
+@click.option('--ocean-tile-divisor', type=int, default=1, help='Only include ocean tiles (pct_land=0) if chunk_id is a multiple of this number. 1 = include all.')
+def process_base_dataset(
+    highres_elevation_folder,
+    lowres_elevation_file,
+    highres_size,
+    lowres_size,
+    lowres_sigma,
+    resolution,
+    res_group,
+    num_chunks,
+    climate_folder,
+    output_file,
+    num_workers,
+    overwrite,
+    prefetch,
+    edge_margin,
+    min_stat_landcover_pct,
+    data_source,
+    ocean_tile_divisor
+):
+    """
+    Process elevation dataset into encoded HDF5 format.
+    
+    Processes .tiff files from elevation-folder at input-resolution, encoding them using
+    a Laplacian pyramid encoder and a learned encoder model. Creates datasets at specified
+    resolution in meters.
+    
+    Input .tiff files should contain elevation data in any resolution, with 1 channel: The elevation
+    
+    Output HDF5 file will contain datasets organized in groups:
+    {resolution}/{chunk_id}/{subchunk_id}/{data_type}
+    Where data_type is one of: residual, lowfreq, climate
+    """
+    # Resolve paths
+    highres_elevation_folder = get_data_path(highres_elevation_folder)
+    lowres_elevation_file = get_data_path(lowres_elevation_file)
+    if climate_folder:
+        climate_folder = get_data_path(climate_folder)
+    output_file = get_data_path(output_file)
+
+    if os.path.exists(output_file):
+        if not overwrite:
+            print(f"{output_file} already exists. Appending to it.")
+        else:
+            print(f"{output_file} already exists. Overwriting it.")
+    else:
+        print(f"{output_file} does not exist. Creating it and building datasets.")
+    
+    with h5py.File(output_file, 'a') as f:
+        # Create resolution group if it doesn't exist
+        res_group = f.require_group(f"{res_group}")
+        
+        # Filter out files that are already in the HDF5 file
+        if not overwrite:
+            skip_chunk_ids = set()
+            for chunk_id in res_group.keys():
+                skip_chunk_ids.add(chunk_id)
+            print(f"Skipping {len(skip_chunk_ids)} existing chunk ids")
+        else:
+            # Instead of deleting the entire resolution group, selectively delete datasets
+            skip_chunk_ids = set()
+            if str(resolution) in f:
+                for chunk_id in res_group.keys():
+                    chunk_group = res_group[chunk_id]
+                    for subchunk_id in chunk_group.keys():
+                        subchunk_group = chunk_group[subchunk_id]
+                        # Delete existing datasets for selected data types
+                        for key in subchunk_group.keys():
+                            assert isinstance(key, str), f"Key {key} is not a string"
+                            if key not in ['latent']:
+                                del subchunk_group[key]
+        
+        dataset = ElevationDataset(
+            highres_elevation_folder,
+            lowres_elevation_file,
+            resolution,
+            highres_size,
+            lowres_size,
+            lowres_sigma,
+            num_chunks,
+            climate_folder,
+            skip_chunk_ids,
+            edge_margin,
+            data_source
+        )
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=None, shuffle=False, num_workers=num_workers, prefetch_factor=prefetch)
+        
+        # Process files in parallel with hierarchical storage
+        for chunks_data in tqdm(dataloader, desc="Saving datasets"):
+            for chunk in chunks_data:
+                # Skip ocean tiles unless chunk_id is a multiple of ocean_tile_divisor
+                if chunk['pct_land'] == 0 and int(chunk['chunk_id']) % ocean_tile_divisor != 0:
+                    continue
+                chunk_group = res_group.require_group(chunk['chunk_id'])
+                subchunk_group = chunk_group.require_group(chunk['subchunk_id'])
+                
+                # Save to HDF5
+                for data_type, data in [
+                    ('residual', chunk['residual']),
+                    ('lowfreq', chunk['lowfreq']),
+                    ('lowres_exact', chunk['lowres_exact']),
+                    ('climate', chunk['climate'])
+                ]:
+                    if data_type == 'residual':
+                        chunk_shape = (128, 128)
+                    elif data_type in ['lowfreq', 'lowres_exact']:
+                        chunk_shape = (32, 32)
+                    elif data_type == 'climate':
+                        chunk_shape = (1, 32, 32)
+                    
+                    if data is None:
+                        continue
+                    dset = subchunk_group.create_dataset(data_type, data=data.numpy(), compression='lzf', chunks=chunk_shape)
+                    dset.attrs.update({
+                        'pct_land': chunk['pct_land'],
+                        'resolution': resolution,
+                        'data_type': data_type,
+                        'chunk_id': chunk['chunk_id'],
+                        'subchunk_id': chunk['subchunk_id']
+                    })
+                    f.flush()
+        
+        # Calculate stats for residual and climate datasets
+        datasets_to_process = ['residual', 'climate']
+        for dataset_name in datasets_to_process:
+            means, stds = calculate_stats_welford(res_group, dataset_name, min_stat_landcover_pct)
+            
+            print(f"{dataset_name} mean: {means}")
+            print(f"{dataset_name} std: {stds}")
+            
+            # Update attributes in hierarchical structure
+            res_group.attrs[f'{dataset_name}_std'] = stds
+            res_group.attrs[f'{dataset_name}_mean'] = means
+
+        print(f"Finished processing. Total chunks in resolution {resolution}: {len(res_group.keys())}")
+
+if __name__ == '__main__':
+    process_base_dataset()
