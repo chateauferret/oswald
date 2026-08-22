@@ -11,6 +11,9 @@ def _find_project_root() -> Path:
     for candidate in (current, *current.parents):
         if (candidate / ".oswald-root").exists():
             return candidate
+
+    # Fallback for direct source-tree usage when the sentinel file is unavailable.
+    # This assumes oswald/paths.py lives one directory below the project root.
     return Path(__file__).resolve().parent.parent
 
 
