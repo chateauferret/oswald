@@ -13,7 +13,7 @@ Oswald-specific files live outside that subtree-driven package flow, notably:
 
 - `configs/`
 - `legends/`
-- `make_terrain.ipynb`
+- `oswald/make_terrain.ipynb`
 - `oswald/`
 
 The Oswald-owned runtime helpers now live under `oswald/`. The files kept under
