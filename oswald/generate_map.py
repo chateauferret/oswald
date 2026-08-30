@@ -44,7 +44,7 @@ from terrain_diffusion.paths import get_checkpoint_path, get_data_path
 from terrain_diffusion.common.cli_helpers import parse_cache_size
 from terrain_diffusion.inference.world_pipeline import WorldPipeline, resolve_hdf5_path
 
-from coarse_map import extract_channels, CHANNEL_INFO
+from oswald.utils import extract_channels, CHANNEL_INFO
 
 PADDING = 64
 PIXELS_PER_CELL = 256

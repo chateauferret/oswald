@@ -21,6 +21,7 @@ import numpy as np
 from pathlib import Path
 import rasterio
 from oswald.utils import extract_channels, CHANNEL_INFO, CHANNEL_ALIASES, sample_equirectangular
+_extract_channels = extract_channels
 
 from PIL import Image
 
@@ -28,10 +29,12 @@ from PIL import Image
 
 class CoarseMap:
 
-    def __init__(self, size: int = 64, extent: float | int = 3000):
+    def __init__(self, size: int = 64, extent: float | int = 3000, coarse_maps=None, **kwargs):
         self.size = int(size)
         self.extent = float(extent)
         self.coarse_map: dict[int, np.ndarray] = {}
+        if coarse_maps is not None or kwargs:
+            self.load_coarse_map_stack_from_array(coarse_maps, **kwargs)
 
     def __enter__(self):
         return self
@@ -62,15 +65,13 @@ class CoarseMap:
         if isinstance(data, (str, Path)):
             return self.load_coarse_map_from_file(data, channel=channel)
         elif isinstance(data, np.ndarray):
-            return self.load_course_map_from_array(data, channel=channel)
+            return self.load_coarse_map_from_array(data, channel=channel)
         elif data is not None:
             arr = np.asarray(data)
-            return self.load_course_map_from_array(arr, channel=channel)
+            return self.load_coarse_map_from_array(arr, channel=channel)
         else:
             raise ValueError("No coarse map data provided to add_channel.")
 
-    # Given a file_path to a coarse map stack (.tif, .npy, .npz, etc.), load it into memory and store it as a numpy array
-    # in the coarse_map dictionary
     def load_coarse_map_stack_from_file(self, file_path):
         path = Path(file_path)
         if path.suffix.lower() in (".tif", ".tiff"):
@@ -94,7 +95,7 @@ class CoarseMap:
         self.coarse_map.update(channels)
         return self
 
-    def load_course_map_from_array(self, array, channel: str | int = "heightmap"):
+    def load_coarse_map_from_array(self, array, channel: str | int = "heightmap"):
         if isinstance(channel, str):
             ch_lower = channel.lower()
             if ch_lower in CHANNEL_ALIASES:
@@ -121,7 +122,7 @@ class CoarseMap:
         self.coarse_map[ch_idx] = arr
         return self
 
-    load_coarse_map_from_array = load_course_map_from_array
+    load_course_map_from_array = load_coarse_map_from_array
 
     def load_coarse_map_from_file(self, file_path: str | Path, channel: str | int = "heightmap"):
         # Handle case where arguments are passed as (channel, file_path)
@@ -154,7 +155,7 @@ class CoarseMap:
             img = Image.open(path)
             arr = np.array(img)
 
-        return self.load_course_map_from_array(arr, channel=actual_channel)
+        return self.load_coarse_map_from_array(arr, channel=actual_channel)
 
     load_coarse_map = load_coarse_map_from_file
 
@@ -171,20 +172,11 @@ class CoarseMap:
             extent = self.extent
         return self._compute_conditioning_map(lat=lat, lon=lon, size=size, extent=extent)
 
-    def get_conditioning_map(self,
-        lat: float, lon: float,
-        size: int | None = None,
-        extent: float | int | None = None
-        ) -> np.ndarray:
-        if size is None:
-            size = self.size
-        if extent is None:
-            extent = self.extent
-        return self._compute_conditioning_map(lat=lat, lon=lon, size=size, extent=extent)
+    get_conditioning_map = get_cond_map
 
     def _compute_conditioning_map(self, lat: float, lon: float, size: int, extent: float | int) -> np.ndarray:
         # take the coarse_maps numpy array stack and make an orthographic projection of it with centre at (lat, lon)
-        # take am square extract of the orthographic projection with (lat, lon) at the centre and extending extent km in each direction
+        # take a square extract of the orthographic projection with (lat, lon) at the centre and extending extent km in each direction
         # rescale to a square raster of dimensions size x size
         # return as a numpy array stack of the same structure as the coarse map
         if not self.coarse_map:

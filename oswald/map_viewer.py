@@ -15,7 +15,7 @@ from terrain_diffusion.inference.relief_map import get_relief_map
 from terrain_diffusion.inference.utils.tiff_stats import calculate_stats
 
 
-class TiffViewer:
+class MapViewer:
     def __init__(
         self,
         path: Union[str, Path, np.ndarray, None] = None,
@@ -317,5 +317,7 @@ class TiffViewer:
 
 
 # Aliases
-Viewer = TiffViewer
-ArrayViewer = TiffViewer
+Viewer = MapViewer
+ArrayViewer = MapViewer
+from oswald.globe_viewer import GlobeViewer, globe_viewer
+Globe = GlobeViewer

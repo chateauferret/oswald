@@ -4,6 +4,7 @@
 # default_value: fill for out-of-bounds conditioning (elevation uses -1000 = deep ocean)
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 CHANNEL_INFO = [
@@ -32,6 +33,58 @@ CHANNEL_ALIASES = {
     "precip_cv": 4,
     "precipitation_variability": 4,
 }
+
+def histogram(
+    arr: np.ndarray,
+    bins: int | str = 256,
+    range: tuple[float, float] | None = None,
+    title: str | None = "Histogram",
+    xlabel: str | None = "Value",
+    ylabel: str | None = "Frequency",
+    show: bool = True,
+    **kwargs,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Plot and display a histogram of array values in usable form.
+
+    Parameters:
+        arr: Input array-like containing numeric data.
+        bins: Number of equal-width bins or binning strategy (default 256).
+        range: The lower and upper range of the bins. If None, min and max of finite values are used.
+        title: Title for the histogram plot. Set to None to omit.
+        xlabel: Label for the X-axis. Set to None to omit.
+        ylabel: Label for the Y-axis. Set to None to omit.
+        show: If True, calls plt.show() to display the plot immediately.
+        **kwargs: Additional keyword arguments passed to plt.hist.
+
+    Returns:
+        tuple (counts, bin_edges) representing the histogram values and bin edges.
+    """
+    if hasattr(arr, "detach"):
+        data = arr.detach().cpu().numpy()
+    else:
+        data = np.asarray(arr)
+
+    valid_data = data[np.isfinite(data)]
+    if len(valid_data) == 0:
+        counts = np.array([], dtype=int)
+        bin_edges = np.array([0.0, 1.0])
+        return counts, bin_edges
+
+    counts, bin_edges = np.histogram(valid_data, bins=bins, range=range)
+
+    plt.figure()
+    plt.hist(valid_data.ravel(), bins=bins, range=range, **kwargs)
+    if title:
+        plt.title(title)
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    plt.grid(True, alpha=0.3)
+    if show:
+        plt.show()
+
+    return counts, bin_edges
 
 def sample_equirectangular(arr: np.ndarray, lats_deg: np.ndarray, lons_deg: np.ndarray) -> np.ndarray:
     """Sample values from an equirectangular 2D array using bilinear interpolation.

@@ -41,7 +41,8 @@ lazy_commands = {
     "explore": ("terrain_diffusion.inference.explorer.server", "main"),
     "onnx-export": ("terrain_diffusion.onnx.export", "main"),
     "azgaar-to-tiff": ("terrain_diffusion.inference.utils.azgaar_to_tiff", "main"),
-    "generate-map": ("terrain_diffusion.inference.generate_map", "main"),
+    "generate-map": ("oswald.generate_map", "main"),
+    "diffusion-server": ("oswald.diffusion_server", "main"),
     "tiff-stats": ("terrain_diffusion.inference.utils.tiff_stats", "main"),
 }
 

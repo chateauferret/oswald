@@ -58,9 +58,9 @@ def test_load_course_map_from_array():
     temp = np.random.randn(64, 128).astype(np.float32)
     precip = np.random.randn(64, 128).astype(np.float32)
 
-    cmap.load_course_map_from_array(elev, channel="heightmap")
-    cmap.load_course_map_from_array(temp, channel="temperature")
-    cmap.load_course_map_from_array(precip, channel=3)
+    cmap.load_coarse_map_from_array(elev, channel="heightmap")
+    cmap.load_coarse_map_from_array(temp, channel="temperature")
+    cmap.load_coarse_map_from_array(precip, channel=3)
 
     assert 0 in cmap.coarse_map
     assert 1 in cmap.coarse_map
@@ -136,7 +136,7 @@ def test_get_conditioning_map():
     lat_grid = np.repeat(lats[:, None], w, axis=1).astype(np.float32)
 
     cmap = CoarseMap()
-    cmap.load_course_map_from_array(lat_grid, channel="heightmap")
+    cmap.load_coarse_map_from_array(lat_grid, channel="heightmap")
 
     # Center at lat=45, lon=0, small extent
     cond = cmap.get_conditioning_map(lat=45.0, lon=0.0, size=64, extent=500.0)
@@ -153,7 +153,7 @@ def test_get_conditioning_map():
 
     # Multi-channel conditioning map
     temp_grid = np.ones((h, w), dtype=np.float32) * 25.0
-    cmap.load_course_map_from_array(temp_grid, channel="temperature")
+    cmap.load_coarse_map_from_array(temp_grid, channel="temperature")
 
     cond_multi = cmap.get_conditioning_map(lat=0.0, lon=0.0, size=32, extent=1000.0)
     assert isinstance(cond_multi, np.ndarray)
@@ -169,7 +169,7 @@ def test_out_of_bounds_default_fill():
     arr = np.ones((h, w), dtype=np.float32) * 500.0
 
     cmap = CoarseMap()
-    cmap.load_course_map_from_array(arr, channel="heightmap")
+    cmap.load_coarse_map_from_array(arr, channel="heightmap")
 
     # Request extent larger than Earth radius (R = 6371 km)
     cond = cmap.get_conditioning_map(lat=0.0, lon=0.0, size=128, extent=8000.0)
@@ -187,7 +187,7 @@ def test_ingestion_into_extract_channels():
     h, w = 64, 128
     arr = np.random.randn(h, w).astype(np.float32)
     cmap = CoarseMap()
-    cmap.load_course_map_from_array(arr, channel="heightmap")
+    cmap.load_coarse_map_from_array(arr, channel="heightmap")
 
     cond_single = cmap.get_conditioning_map(lat=30.0, lon=45.0, size=64, extent=1000.0)
     extracted_single = _extract_channels(cond_single)
@@ -195,7 +195,7 @@ def test_ingestion_into_extract_channels():
     assert extracted_single[0].shape == (64, 64)
 
     # With multiple channels
-    cmap.load_course_map_from_array(arr + 10, channel="temperature")
+    cmap.load_coarse_map_from_array(arr + 10, channel="temperature")
     cond_multi = cmap.get_conditioning_map(lat=30.0, lon=45.0, size=64, extent=1000.0)
     extracted_multi = _extract_channels(cond_multi)
     assert 0 in extracted_multi
@@ -211,7 +211,7 @@ def test_antimeridian_wrap():
     lon_grid = np.repeat(lons[None, :], h, axis=0).astype(np.float32)
 
     cmap = CoarseMap()
-    cmap.load_course_map_from_array(lon_grid, channel="heightmap")
+    cmap.load_coarse_map_from_array(lon_grid, channel="heightmap")
 
     # Center projection at lon=180, lat=0
     cond = cmap.get_conditioning_map(lat=0.0, lon=180.0, size=64, extent=1000.0)
@@ -223,11 +223,11 @@ def test_antimeridian_wrap():
 def test_channel_aliases():
     cmap = CoarseMap()
     arr = np.ones((10, 20), dtype=np.float32)
-    cmap.load_course_map_from_array(arr * 1, channel="elev")
-    cmap.load_course_map_from_array(arr * 2, channel="temp")
-    cmap.load_course_map_from_array(arr * 3, channel="temp_std")
-    cmap.load_course_map_from_array(arr * 4, channel="rain")
-    cmap.load_course_map_from_array(arr * 5, channel="precip_cv")
+    cmap.load_coarse_map_from_array(arr * 1, channel="elev")
+    cmap.load_coarse_map_from_array(arr * 2, channel="temp")
+    cmap.load_coarse_map_from_array(arr * 3, channel="temp_std")
+    cmap.load_coarse_map_from_array(arr * 4, channel="rain")
+    cmap.load_coarse_map_from_array(arr * 5, channel="precip_cv")
 
     assert cmap.coarse_map[0][0, 0] == 1
     assert cmap.coarse_map[1][0, 0] == 2
